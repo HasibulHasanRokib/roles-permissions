@@ -1,7 +1,3 @@
-"use client";
-
-import { Edit2, Trash2, Eye } from "lucide-react";
-import { Button } from "@/components/ui/button";
 import {
   Table,
   TableBody,
@@ -11,22 +7,22 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
+import { prisma } from "@/lib/prisma";
+import { RoleDetailsDrawer } from "./role-details-drawer";
+import { RoleDelete } from "./role-delete";
+import { RoleModal } from "./role-modal";
 
-interface Role {
-  id: string;
-  name: string;
-  permissions: string[];
-  createdDate: string;
-}
+export async function RoleTable() {
+  const roles = await prisma.role.findMany({
+    include: {
+      permissions: {
+        include: {
+          permission: true,
+        },
+      },
+    },
+  });
 
-interface RoleTableProps {
-  roles: Role[];
-  onEdit: (role: Role) => void;
-  onDelete: (roleId: string) => void;
-  onView: (role: Role) => void;
-}
-
-export function RoleTable({ roles, onEdit, onDelete, onView }: RoleTableProps) {
   return (
     <div>
       <div className="overflow-x-auto">
@@ -35,7 +31,6 @@ export function RoleTable({ roles, onEdit, onDelete, onView }: RoleTableProps) {
             <TableRow className="border-b">
               <TableHead className="font-semibold">Role Name</TableHead>
               <TableHead className="font-semibold">Permissions</TableHead>
-              <TableHead className="font-semibold">Created</TableHead>
               <TableHead className="text-right font-semibold">
                 Actions
               </TableHead>
@@ -75,47 +70,26 @@ export function RoleTable({ roles, onEdit, onDelete, onView }: RoleTableProps) {
                       </Badge>
                     </div>
                   </TableCell>
-                  <TableCell className="text-muted-foreground py-4 text-sm">
-                    {new Date(role.createdDate).toLocaleDateString("en-US", {
-                      year: "numeric",
-                      month: "short",
-                      day: "numeric",
-                    })}
-                  </TableCell>
+
                   <TableCell className="py-4">
                     <div className="flex justify-end gap-2">
                       <div>
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          onClick={() => onView(role)}
-                          className="hover:bg-primary/20 hover:text-primary h-8 w-8 p-0"
-                          title="View details"
-                        >
-                          <Eye className="h-4 w-4" />
-                        </Button>
+                        <RoleDetailsDrawer role={role} />
                       </div>
                       <div>
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          onClick={() => onEdit(role)}
-                          className="h-8 w-8 p-0 hover:bg-blue-500/20 hover:text-blue-500"
-                          title="Edit role"
-                        >
-                          <Edit2 className="h-4 w-4" />
-                        </Button>
+                        <RoleModal
+                          mode="edit"
+                          role={{
+                            id: role.id,
+                            name: role.name,
+                            permissions: role.permissions.map(
+                              (p) => p.permission.key,
+                            ),
+                          }}
+                        />
                       </div>
                       <div>
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          onClick={() => onDelete(role.id)}
-                          className="hover:bg-destructive/20 hover:text-destructive h-8 w-8 p-0"
-                          title="Delete role"
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
+                        <RoleDelete roleId={role.id} />
                       </div>
                     </div>
                   </TableCell>

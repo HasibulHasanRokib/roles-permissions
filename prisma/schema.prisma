@@ -8,7 +8,32 @@ datasource db {
 }
 
 model User {
-  id    Int    @id @default(autoincrement())
-  name  String
-  email String @unique
+  id     String @id @default(cuid())
+  name   String
+  email  String @unique
+  roleId String
+  role   Role   @relation(fields: [roleId], references: [id])
+}
+
+model Role {
+  id          String           @id @default(cuid())
+  name        String           @unique // user, admin, super_admin, moderator
+  permissions RolePermission[]
+  users       User[]
+}
+
+model Permission {
+  id              String           @id @default(cuid())
+  key             String           @unique // user.view, admin.create
+  rolePermissions RolePermission[]
+}
+
+model RolePermission {
+  roleId       String
+  permissionId String
+
+  role       Role       @relation(fields: [roleId], references: [id])
+  permission Permission @relation(fields: [permissionId], references: [id])
+
+  @@id([roleId, permissionId])
 }

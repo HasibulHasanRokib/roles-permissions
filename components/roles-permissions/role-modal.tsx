@@ -1,13 +1,14 @@
 "use client";
 
-import { useState, useMemo } from "react";
-import { Check } from "lucide-react";
+import { useState, useMemo, useTransition } from "react";
+import { Edit2, Plus } from "lucide-react";
 
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
+  DialogTrigger,
 } from "@/components/ui/dialog";
 
 import { Button } from "@/components/ui/button";
@@ -15,51 +16,28 @@ import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Input } from "@/components/ui/input";
+import { createRoleAction, updateRoleAction } from "@/lib/actions/role.actions";
+import { Spinner } from "@/components/ui/spinner";
+import { toast } from "sonner";
+import { PERMISSION_CATEGORIES, PERMISSION_LABELS } from "./permission-data";
 
-interface Role {
-  id: string;
-  name: string;
-  permissions: string[];
-  createdDate: string;
-}
-
-interface CreateRoleModalProps {
-  open: boolean;
-  role: Role | null;
-  onSave: (roleData: { name: string; permissions: string[] }) => void;
-  onClose: () => void;
-}
-
-const PERMISSION_CATEGORIES = {
-  "User Management": ["user:view", "user:create", "user:update", "user:delete"],
-  "Admin Management": ["admin:create", "admin:update", "admin:delete"],
-  "Task Management": ["task:assign", "task:update", "task:delete"],
+type RoleModalProps = {
+  mode: "create" | "edit";
+  role?: {
+    id: string;
+    name: string;
+    permissions: string[];
+  };
 };
 
-const PERMISSION_LABELS: Record<string, string> = {
-  "user:view": "View Users",
-  "user:create": "Create User",
-  "user:update": "Update User",
-  "user:delete": "Delete User",
-  "admin:create": "Create Admin",
-  "admin:update": "Update Admin",
-  "admin:delete": "Delete Admin",
-  "task:assign": "Assign Task",
-  "task:update": "Update Task",
-  "task:delete": "Delete Task",
-};
-
-export function CreateRoleModal({
-  open,
-  role,
-  onSave,
-  onClose,
-}: CreateRoleModalProps) {
+export function RoleModal({ mode, role }: RoleModalProps) {
+  const [open, setOpen] = useState(false);
   const [roleName, setRoleName] = useState(role?.name || "");
   const [selectedPermissions, setSelectedPermissions] = useState<string[]>(
     role?.permissions || [],
   );
   const [searchTerm, setSearchTerm] = useState("");
+  const [isPending, startTransition] = useTransition();
 
   const allPermissions = useMemo(
     () => Object.values(PERMISSION_CATEGORIES).flat(),
@@ -82,23 +60,50 @@ export function CreateRoleModal({
     }
   };
 
-  const handleSave = () => {
-    if (!roleName.trim()) return;
+  const handleSubmit = () => {
+    startTransition(async () => {
+      try {
+        if (mode === "create") {
+          await createRoleAction({
+            name: roleName,
+            permissions: selectedPermissions,
+          });
+          toast.success("Role created 🚀");
+        } else {
+          await updateRoleAction(role!.id, {
+            name: roleName,
+            permissions: selectedPermissions,
+          });
+          toast.success("Role updated 🔥");
+        }
 
-    onSave({
-      name: roleName.trim(),
-      permissions: selectedPermissions,
+        setOpen(false);
+      } catch {
+        toast.error("Something went wrong 😭");
+      }
     });
   };
 
   return (
-    <Dialog open={open} onOpenChange={onClose}>
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogTrigger asChild>
+        {mode === "create" ? (
+          <Button>
+            <Plus className="h-4 w-4" />
+            Create Role
+          </Button>
+        ) : (
+          <Button size="sm" variant="ghost" className="h-8 w-8 p-0">
+            <Edit2 className="h-4 w-4" />
+          </Button>
+        )}
+      </DialogTrigger>
       <DialogContent className="max-w-2xl overflow-hidden p-0">
         {/* Header */}
         <DialogHeader className="border-b px-6 py-4">
           <DialogTitle className="text-xl font-bold">
-            {role ? "Edit Role" : "Create New Role"}
-          </DialogTitle>
+            {mode === "create" ? "Create New Role" : "Edit Role"}
+          </DialogTitle>{" "}
         </DialogHeader>
 
         <ScrollArea className="max-h-[70vh]">
@@ -174,13 +179,21 @@ export function CreateRoleModal({
 
         {/* Footer */}
         <div className="flex justify-end gap-3 border-t px-6 py-4">
-          <Button variant="outline" onClick={onClose}>
+          <Button variant="outline" onClick={() => setOpen(false)}>
             Cancel
           </Button>
 
-          <Button onClick={handleSave} disabled={!roleName.trim()}>
-            <Check className="mr-1 h-4 w-4" />
-            {role ? "Update Role" : "Create Role"}
+          <Button
+            onClick={handleSubmit}
+            disabled={!roleName.trim() || isPending}
+          >
+            {isPending ? (
+              <Spinner />
+            ) : mode === "create" ? (
+              "Create Role"
+            ) : (
+              "Update Role"
+            )}
           </Button>
         </div>
       </DialogContent>

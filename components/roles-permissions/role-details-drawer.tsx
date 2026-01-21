@@ -1,58 +1,43 @@
-"use client";
-
-import { Shield, Calendar, Lock } from "lucide-react";
+import { Shield, Lock, Eye } from "lucide-react";
 
 import {
   Sheet,
   SheetContent,
   SheetHeader,
   SheetTitle,
+  SheetTrigger,
 } from "@/components/ui/sheet";
 
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { Button } from "../ui/button";
+import { Permission, Role } from "@/lib/generated/prisma/client";
+import { PERMISSION_CATEGORIES, PERMISSION_LABELS } from "./permission-data";
 
-interface Role {
-  id: string;
-  name: string;
-  permissions: string[];
-  createdDate: string;
-}
-
-interface RoleDetailsDrawerProps {
-  open: boolean;
-  role: Role | null;
-  onClose: () => void;
-}
-
-const PERMISSION_LABELS: Record<string, string> = {
-  "user:view": "View Users",
-  "user:create": "Create User",
-  "user:update": "Update User",
-  "user:delete": "Delete User",
-  "admin:create": "Create Admin",
-  "admin:update": "Update Admin",
-  "admin:delete": "Delete Admin",
-  "task:assign": "Assign Task",
-  "task:update": "Update Task",
-  "task:delete": "Delete Task",
-};
-
-const PERMISSION_CATEGORIES: Record<string, string[]> = {
-  "User Management": ["user:view", "user:create", "user:update", "user:delete"],
-  "Admin Management": ["admin:create", "admin:update", "admin:delete"],
-  "Task Management": ["task:assign", "task:update", "task:delete"],
+type RoleWithPermissions = Role & {
+  permissions: {
+    permission: Permission;
+  }[];
 };
 
 export function RoleDetailsDrawer({
-  open,
   role,
-  onClose,
-}: RoleDetailsDrawerProps) {
+}: {
+  role: RoleWithPermissions | null;
+}) {
   if (!role) return null;
-
   return (
-    <Sheet open={open} onOpenChange={onClose}>
+    <Sheet>
+      <SheetTrigger asChild>
+        <Button
+          size="sm"
+          variant="ghost"
+          className="hover:bg-primary/20 hover:text-primary h-8 w-8 p-0"
+          title="View details"
+        >
+          <Eye className="h-4 w-4" />
+        </Button>
+      </SheetTrigger>
       <SheetContent side="right">
         {/* Header */}
         <SheetHeader className="border-b px-6 py-4">
@@ -83,22 +68,6 @@ export function RoleDetailsDrawer({
                   </div>
                 </div>
               </div>
-
-              <div className="rounded-lg border p-4">
-                <div className="flex gap-3">
-                  <Calendar className="h-5 w-5 text-blue-500" />
-                  <div>
-                    <p className="text-muted-foreground text-xs">Created</p>
-                    <p className="text-sm font-semibold">
-                      {new Date(role.createdDate).toLocaleDateString("en-US", {
-                        year: "numeric",
-                        month: "long",
-                        day: "numeric",
-                      })}
-                    </p>
-                  </div>
-                </div>
-              </div>
             </div>
 
             {/* Permissions */}
@@ -111,7 +80,7 @@ export function RoleDetailsDrawer({
               {Object.entries(PERMISSION_CATEGORIES).map(
                 ([category, perms]) => {
                   const matched = role.permissions.filter((p) =>
-                    perms.includes(p),
+                    perms.includes(p.permission.key),
                   );
 
                   if (!matched.length) return null;
@@ -124,8 +93,11 @@ export function RoleDetailsDrawer({
 
                       <div className="flex flex-wrap gap-2">
                         {matched.map((permission) => (
-                          <Badge key={permission} variant="secondary">
-                            ✓ {PERMISSION_LABELS[permission]}
+                          <Badge
+                            key={permission.permission.id}
+                            variant="secondary"
+                          >
+                            ✓ {PERMISSION_LABELS[permission.permission.key]}
                           </Badge>
                         ))}
                       </div>
